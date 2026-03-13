@@ -96,7 +96,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ setView }) => {
                     <div className="absolute inset-0 bg-brand-gold/40 blur-2xl rounded-full scale-125 animate-pulse"></div>
                     <div className="relative bg-white text-white w-24 h-24 rounded-3xl flex items-center justify-center shadow-2xl shadow-brand-teal/40 transform -rotate-3 hover:rotate-0 transition-transform duration-500 ring-4 ring-white/30 overflow-hidden">
                         <img 
-                            src="/logo.png" 
+                            src="/icon-v3.png" 
                             alt="SwiftZA Logo" 
                             className="w-full h-full object-cover"
                             onError={(e) => {
