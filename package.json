@@ -1,0 +1,44 @@
+{
+  "name": "ridesa",
+  "version": "1.0.0",
+  "description": "SwiftZA South Africa",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx server.ts",
+    "build": "tsc && vite build",
+    "start": "tsx server.ts",
+    "preview": "vite preview",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@capacitor/core": "^5.7.0",
+    "@capacitor/geolocation": "^5.0.0",
+    "@capacitor/push-notifications": "^5.0.0",
+    "@google/genai": "^1.35.0",
+    "@react-google-maps/api": "^2.20.8",
+    "@supabase/supabase-js": "^2.39.0",
+    "axios": "^1.13.6",
+    "express": "^5.2.1",
+    "html5-qrcode": "^2.3.8",
+    "jspdf": "^4.2.0",
+    "jsqr": "^1.4.0",
+    "leaflet": "^1.9.4",
+    "mapbox-gl": "^3.19.1",
+    "motion": "^12.35.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tsx": "^4.21.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/mapbox-gl": "^3.4.1",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.27",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12"
+  }
+}

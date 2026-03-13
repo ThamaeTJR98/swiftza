@@ -1,0 +1,23 @@
+{
+  "name": "SwiftZA",
+  "short_name": "SwiftZA",
+  "description": "Move Mzansi - The ultimate delivery and errand runner app.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#00C4B4",
+  "icons": [
+    {
+      "src": "/icon-v3.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-v3.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
