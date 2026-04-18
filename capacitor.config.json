@@ -1,0 +1,17 @@
+
+{
+  "appId": "com.swiftza.app",
+  "appName": "SwiftZA",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "Geolocation": {
+      "permissions": ["location"]
+    },
+    "Camera": {
+      "permissions": ["camera", "photos"]
+    }
+  }
+}

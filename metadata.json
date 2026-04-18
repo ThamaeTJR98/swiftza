@@ -1,0 +1,8 @@
+{
+  "name": "SwiftZA",
+  "description": "A fun, modern, and safe ride-hailing and errand-running app tailored for South Africa. Connects locals with reliable runners and drivers.",
+  "requestFramePermissions": [
+    "geolocation",
+    "camera"
+  ]
+}
