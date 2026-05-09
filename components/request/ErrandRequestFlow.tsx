@@ -8,6 +8,7 @@ import { RideService } from '../../services/RideService';
 import { useSpeechToText } from '../../hooks/useSpeechToText';
 import { Icon } from '../Icons';
 import { loadGoogleMaps } from '../../utils/mapLoader';
+import { WaitingPreferenceSelector } from '../WaitingPreferenceSelector';
 
 declare var google: any;
 
@@ -20,6 +21,8 @@ const MAP_STYLES = [
 export const ErrandRequestFlow: React.FC = () => {
   const { navigate, setView, goBack, setActiveRide, user, initialRequestQuery, setAvailableJobs, errandCategory, setErrandCategory, initialPickup, setInitialPickup, initialDropoff, setInitialDropoff } = useApp();
   const [step, setStep] = useState<'details' | 'vehicle'>('details');
+  const [waitingPreference, setWaitingPreference] = useState<'WAIT_FOR_ME' | 'DROP_AND_RETURN' | null>(null);
+  const [waitingCharge, setWaitingCharge] = useState<any>(null);
   const [selectedRide, setSelectedRide] = useState<string>('e1');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -821,14 +824,27 @@ export const ErrandRequestFlow: React.FC = () => {
                     Next: Choose Runner
                 </Button>
             ) : (
-                <Button 
-                    fullWidth 
-                    onClick={handleRequest} 
-                    disabled={isSubmitting}
-                    className="!rounded-2xl !h-14 font-black text-lg !bg-blue-600 !text-white shadow-xl shadow-blue-500/20"
-                >
-                    {isSubmitting ? 'Processing...' : 'Confirm Errand'}
-                </Button>
+                <>
+                    {waitingPreference === null && (
+                        <WaitingPreferenceSelector
+                            baseFare={options.find(o => o.id === selectedRide)?.price || 0}
+                            onSelect={(preference, charge) => {
+                                setWaitingPreference(preference);
+                                setWaitingCharge(charge || null);
+                            }}
+                        />
+                    )}
+                    {waitingPreference !== null && (
+                        <Button 
+                            fullWidth 
+                            onClick={handleRequest} 
+                            disabled={isSubmitting}
+                            className="!rounded-2xl !h-14 font-black text-lg !bg-blue-600 !text-white shadow-xl shadow-blue-500/20"
+                        >
+                            {isSubmitting ? 'Processing...' : 'Confirm Errand'}
+                        </Button>
+                    )}
+                </>
             )}
         </div>
     </div>
