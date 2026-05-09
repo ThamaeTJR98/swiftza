@@ -197,3 +197,32 @@ export const getMoverOptions = (stopsCount: number, helpersCount: number, distan
         { id: 'm3', name: '4 Ton Truck', price: fullPrice, time: '45 min', icon: 'front_loader', desc: 'Full home move (Heavy)' },
     ];
 };
+// ── Waiting / Standing Charge ──────────────────────────────
+
+export const WAITING_FLAT_FEE = 20;   // R20 one-time booking fee for "Wait For Me"
+export const WAITING_PER_MINUTE = 2;  // R2 per minute while driver waits
+
+/**
+ * Calculates the final waiting charge using actual elapsed minutes.
+ * Call this when the customer returns to the vehicle and the meter stops.
+ */
+export const calculateWaitingCharge = (actualWaitMinutes: number) => {
+  const perMinuteTotal = actualWaitMinutes * WAITING_PER_MINUTE;
+  const total = WAITING_FLAT_FEE + perMinuteTotal;
+
+  return {
+    flatBookingFee: WAITING_FLAT_FEE,
+    perMinuteRate: WAITING_PER_MINUTE,
+    actualWaitMinutes,
+    perMinuteTotal,
+    total,
+  };
+};
+
+/**
+ * Estimates the waiting charge upfront so the customer can
+ * see a cost preview before confirming their preference.
+ */
+export const estimateWaitingCharge = (estimatedMinutes: number) => {
+  return calculateWaitingCharge(estimatedMinutes);
+};
