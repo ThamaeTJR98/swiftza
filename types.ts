@@ -431,3 +431,15 @@ export interface SavedPlace {
     lng: number;
     icon: string;
 }
+export enum WaitingPreference {
+  WAIT_FOR_ME = 'WAIT_FOR_ME',
+  DROP_AND_RETURN = 'DROP_AND_RETURN'
+}
+
+export interface WaitingCharge {
+  preference: WaitingPreference;
+  flatBookingFee: number;
+  perMinuteRate: number;
+  estimatedWaitMinutes: number;
+  estimatedWaitCost: number;
+}
