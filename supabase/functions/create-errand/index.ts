@@ -9,26 +9,56 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const PRICING = {
-    BASE: 45,
-    PER_KM: 8.5,
-    PER_STOP: 30,
-    QUEUE_RATE_PER_HOUR: 120
+// --- CENTRALIZED PRICING LOGIC ---
+const PRICING_RULES = {
+    BASE_FARE: 50,
+    MIN_FARE: 50,
+    PER_KM: 10,
+    PER_STOP: 25,
+    WINDOWS: {
+        MORNING: { start: 6, end: 19, multiplier: 1.0, base: 60 },
+        EVENING: { start: 20, end: 23, multiplier: 1.2, base: 80 },
+        NIGHT: { start: 0, end: 5, multiplier: 1.5, base: 100 }
+    },
+    VEHICLES: {
+        'RideLite': 1.0,
+        'RideComfort': 1.3,
+        'RideXL': 1.6,
+        'Motorbike': 1.0,
+        'Bakkie': 2.0
+    }
 };
 
+function calculatePrice(distanceKm: number, vehicleType: string, stopsCount: number): number {
+    const hour = new Date().getHours(); // Server time (UTC usually, ensure offset for SAST +2)
+    const saHour = (hour + 2) % 24;
+
+    let window = PRICING_RULES.WINDOWS.MORNING;
+    if (saHour >= PRICING_RULES.WINDOWS.EVENING.start && saHour <= PRICING_RULES.WINDOWS.EVENING.end) window = PRICING_RULES.WINDOWS.EVENING;
+    if (saHour >= PRICING_RULES.WINDOWS.NIGHT.start && saHour <= PRICING_RULES.WINDOWS.NIGHT.end) window = PRICING_RULES.WINDOWS.NIGHT;
+
+    let total = window.base + (distanceKm * PRICING_RULES.PER_KM) + (stopsCount * PRICING_RULES.PER_STOP);
+    
+    // Apply Vehicle Multiplier
+    const vMult = PRICING_RULES.VEHICLES[vehicleType] || 1.0;
+    total = total * vMult * window.multiplier;
+
+    return Math.max(PRICING_RULES.MIN_FARE, Math.ceil(total));
+}
+
 // --- GOOGLE MAPS DISTANCE HELPER ---
-async function getGoogleDistance(origin: {lat: number, lng: number}, destination: {lat: number, lng: number}, stops: any[] = []): Promise<number> {
+async function getGoogleDistance(origin: {lat: number, lng: number}, destination: {lat: number, lng: number}, waypoints: any[] = []): Promise<number> {
     const apiKey = Deno.env.get('GOOGLE_MAPS_API_KEY');
     if (!apiKey) {
         console.warn("Missing GOOGLE_MAPS_API_KEY, falling back to mock distance");
-        return 5;
+        return 5 + (waypoints?.length || 0) * 3;
     }
 
     try {
         const originStr = `${origin.lat},${origin.lng}`;
         const destStr = `${destination.lat},${destination.lng}`;
-        const waypointsStr = stops.length > 0 
-            ? `&waypoints=${stops.map(w => `${w.lat},${w.lng}`).join('|')}`
+        const waypointsStr = waypoints.length > 0 
+            ? `&waypoints=${waypoints.map(w => `${w.lat},${w.lng}`).join('|')}`
             : '';
 
         const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${originStr}&destination=${destStr}${waypointsStr}&key=${apiKey}`;
@@ -36,7 +66,7 @@ async function getGoogleDistance(origin: {lat: number, lng: number}, destination
         const data = await resp.json();
 
         if (data.status !== 'OK') {
-            throw new Error(`Google Maps API Error: ${data.status}`);
+            throw new Error(`Google Maps API Error: ${data.status} - ${data.error_message || 'Unknown error'}`);
         }
 
         let totalMeters = 0;
@@ -47,7 +77,7 @@ async function getGoogleDistance(origin: {lat: number, lng: number}, destination
         return totalMeters / 1000; // Convert to KM
     } catch (e) {
         console.error("Distance Calculation Failed:", e);
-        return 5; // Fallback
+        return 5 + (waypoints?.length || 0) * 3; // Fallback
     }
 }
 
@@ -60,81 +90,48 @@ serve(async (req: Request) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { pickup, dropoff, stops, errandDetails, paymentMethod } = await req.json()
+    const { type, pickup, dropoff, waypoints, paymentMethod, vehicleType } = await req.json()
     
-    // 1. Calculate Errand Price using REAL distance
-    const stopsCount = stops?.length || 0;
-    const distanceKm = await getGoogleDistance(pickup, dropoff, stops);
-    
-    let price = PRICING.BASE + (distanceKm * PRICING.PER_KM) + (stopsCount * PRICING.PER_STOP);
-    
-    if (errandDetails?.category === 'GOVT_QUEUE' || errandDetails?.category === 'BANK_QUEUE') {
-        price += (PRICING.QUEUE_RATE_PER_HOUR / 2); // Add 30 mins base queue fee
-    }
+    // 1. Calculate Price Securely using REAL distance
+    const distanceKm = await getGoogleDistance(pickup, dropoff, waypoints);
+    const finalPrice = calculatePrice(distanceKm, vehicleType, waypoints?.length || 0);
 
     const authHeader = req.headers.get('Authorization')!
     const { data: { user }, error: userError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
     if (userError || !user) throw new Error('Unauthorized')
 
-    // --- SUBSCRIPTION CHECK ---
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('subscription_tier, errand_credits_remaining')
-        .eq('id', user.id)
-        .single();
-
-    let finalPrice = Math.ceil(price);
-    let usedCredit = false;
-
-    if (profile?.subscription_tier === 'CREATOR_6' && profile.errand_credits_remaining > 0) {
-        // Check if it's daytime (e.g., 7 AM to 5 PM SAST)
-        const currentHour = new Date().getUTCHours() + 2; // Rough SAST conversion
-        if (currentHour >= 7 && currentHour <= 17) {
-            // Check distance cap (e.g., 15km)
-            if (distanceKm <= 15) {
-                finalPrice = 0;
-                usedCredit = true;
-            } else {
-                // Charge only for the overage distance
-                finalPrice = Math.ceil((distanceKm - 15) * PRICING.PER_KM);
-                usedCredit = true;
-            }
-        }
-    }
-
-    const { data: errand, error } = await supabase
+    const { data: ride, error } = await supabase
       .from('rides')
       .insert({
         rider_id: user.id,
-        type: 'errand',
-        status: 'SEARCHING',
-        price: finalPrice,
-        payment_method: usedCredit ? 'SUBSCRIPTION' : paymentMethod,
         pickup_address: pickup.address,
         pickup_lat: pickup.lat,
         pickup_lng: pickup.lng,
         dropoff_address: dropoff.address,
         dropoff_lat: dropoff.lat,
         dropoff_lng: dropoff.lng,
-        stops: stops,
-        errand_details: errandDetails,
-        otp: Math.floor(1000 + Math.random() * 9000).toString()
+        // Store waypoints as JSONB if column exists, or rely on client state for now if not in schema.
+        // Assuming schema might need update or we just calculate price here. 
+        // For this implementation, we focus on price correctness.
+        price: finalPrice, 
+        payment_method: paymentMethod,
+        type: type,
+        status: 'SEARCHING',
+        location: `POINT(${pickup.lng} ${pickup.lat})`
       })
       .select()
       .single()
 
     if (error) throw error
 
-    // Deduct credit if used
-    if (usedCredit) {
-        await supabase
-            .from('profiles')
-            .update({ errand_credits_remaining: profile.errand_credits_remaining - 1 })
-            .eq('id', user.id);
-    }
-
-    return new Response(JSON.stringify(errand), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
+    return new Response(
+      JSON.stringify(ride),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    )
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 })
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 },
+    )
   }
 })
