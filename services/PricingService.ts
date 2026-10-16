@@ -6,6 +6,7 @@ export const PRICING_CONSTANTS = {
     // General
     VAT_RATE: 0.15,
     PLATFORM_COMMISSION: 0.20, // 20%
+    MIN_PRICE: 50, // Minimum price of R50
     
     // Errands (Standard)
     ERRAND_BASE_FEE: 50,
@@ -95,7 +96,7 @@ export const PricingService = {
         
         // 1. Base Fee
         let baseFare = PRICING_CONSTANTS.ERRAND_BASE_FEE;
-        if (vehicleType === RunnerMode.MOTORBIKE) baseFare *= 0.8;
+        // Bike and vehicle share the same rates (1.0x)
         if (vehicleType === RunnerMode.FOOT) baseFare *= 0.5;
         
         // 2. Distance Fee (Tiered)
@@ -121,7 +122,7 @@ export const PricingService = {
         }
         
         const vat = subTotal * PRICING_CONSTANTS.VAT_RATE;
-        const total = Math.ceil(subTotal + vat);
+        const total = Math.max(PRICING_CONSTANTS.MIN_PRICE, Math.ceil(subTotal + vat));
         
         return {
             baseFare,
@@ -160,7 +161,7 @@ export const PricingService = {
         
         const subTotal = baseFare + timeFare;
         const vat = subTotal * PRICING_CONSTANTS.VAT_RATE;
-        const total = Math.ceil(subTotal + vat);
+        const total = Math.max(PRICING_CONSTANTS.MIN_PRICE, Math.ceil(subTotal + vat));
         
         return {
             baseFare,
@@ -225,7 +226,7 @@ export const PricingService = {
         
         const subTotal = baseFare + distanceFare + specialFees + insuranceFee;
         const vat = subTotal * PRICING_CONSTANTS.VAT_RATE;
-        const total = Math.ceil(subTotal + vat);
+        const total = Math.max(PRICING_CONSTANTS.MIN_PRICE, Math.ceil(subTotal + vat));
         
         return {
             baseFare,
